@@ -176,6 +176,7 @@ class ResNet(nn.Module):
                             self.base_width, previous_dilation, norm_layer))
         self.inplanes = planes * block.expansion
         for _ in range(1, blocks):
+            # 这里去掉了stride和downsample，因为已经保证输入输出一样了
             layers.append(block(self.inplanes, planes, groups=self.groups,
                                 base_width=self.base_width, dilation=self.dilation,
                                 norm_layer=norm_layer))
@@ -214,8 +215,13 @@ def resnet56_server(c, pretrained=False, path=None, **kwargs):
         new_state_dict = OrderedDict()
         for k, v in state_dict.items():
             # name = k[7:]  # remove 'module.' of dataparallel
+            # 在多GPU训练后保存的模型会带有module.前缀，需要去掉
             name = k.replace("module.", "")
             new_state_dict[name] = v
 
         model.load_state_dict(new_state_dict)
     return model
+
+
+def resnet110():
+    pass

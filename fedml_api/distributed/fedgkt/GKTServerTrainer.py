@@ -16,6 +16,7 @@ class GKTServerTrainer(object):
         self.device = device
         self.args = args
 
+        # 注意这里说明了batchsize和GPU数量的关系
         """
             when use data parallel, we should increase the batch size accordingly (single GPU = 64; 4 GPUs = 256)
             One epoch training time: single GPU (64) = 1:03; 4 x GPUs (256) = 38s; 4 x GPUs (64) = 1:00
@@ -25,9 +26,12 @@ class GKTServerTrainer(object):
         # server model
         self.model_global = server_model
 
+        # 这里直接设成四个可能会出错吧，是的是会出错
         if args.multi_gpu_server and torch.cuda.device_count() > 1:
-            self.model_global = nn.DataParallel(self.model_global, device_ids=[0, 1, 2, 3]).to(device)
+            # self.model_global = nn.DataParallel(self.model_global, device_ids=[0, 1, 2, 3]).to(device)
+            self.model_global = nn.DataParallel(self.model_global, device_ids=list(range(args.gpu_num_per_server))).to(device)
 
+        # 设置mode为training，会影响BN和dropout的行为
         self.model_global.train()
         self.model_global.to(self.device)
 
@@ -40,10 +44,14 @@ class GKTServerTrainer(object):
             self.optimizer = torch.optim.SGD(optim_params, lr=self.args.lr, momentum=0.9,
                                              nesterov=True,
                                              weight_decay=self.args.wd)
+            # params_{t+1} = (1 - wd) * params_{t} + delta_{t+1}
+            # delta_{t+1} = momentum * delta_{t} - lr * gradient(params_{t} + momentum * delta_{t})
         elif self.args.optimizer == "Adam":
             self.optimizer = optim.Adam(optim_params, lr=self.args.lr, weight_decay=0.0001, amsgrad=True)
 
+        # Accuracy不再上升时学习率减小
         self.scheduler = ReduceLROnPlateau(self.optimizer, 'max')
+        logging.info("-------------- a57")
 
         self.criterion_CE = nn.CrossEntropyLoss()
         self.criterion_KL = utils.KL_Loss(self.args.temperature)
@@ -107,6 +115,7 @@ class GKTServerTrainer(object):
             else:
                 self.do_not_train_on_client(round_idx)
 
+    # 这块儿的代码写的真是太烂了，分支划分的不明不白而且逻辑都一样
     def train_and_distill_on_client(self, round_idx):
         if self.args.test:
             epochs_server, whether_distill_back = self.get_server_epoch_strategy_test()
@@ -114,7 +123,8 @@ class GKTServerTrainer(object):
             if self.args.client_model == "resnet56":
                 epochs_server, whether_distill_back = self.get_server_epoch_strategy_reset56_2(round_idx)
             else:
-                epochs_server = self.args.self.args.epochs_server
+                # 这里原代码明显错误self.args.self.args，已更正
+                epochs_server = self.args.epochs_server
 
         # train according to the logits from the client
         self.train_and_eval(round_idx, epochs_server)
@@ -306,6 +316,7 @@ class GKTServerTrainer(object):
                     batch_labels = torch.from_numpy(labels_dict[batch_index]).long().to(self.device)
 
                     output_batch = self.model_global(batch_feature_map_x)
+                    # 注意test_loss是不包含蒸馏损失函数的
                     loss = self.criterion_CE(output_batch, batch_labels)
 
                     # Update average loss and accuracy

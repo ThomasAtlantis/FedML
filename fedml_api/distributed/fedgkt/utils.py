@@ -84,6 +84,7 @@ class KL_Loss(nn.Module):
         # loss_2 = -torch.sum(torch.sum(torch.mul(F.log_softmax(teacher_outputs,dim=1), F.softmax(teacher_outputs,dim=1)+10**(-7))))/teacher_outputs.size(0)
         # print('loss H:',loss_2)
 
+        # 这里是用output_batch去逼近teacher_outputs，注意上面是log_softmax，下面是softmax
         output_batch = F.log_softmax(output_batch / self.T, dim=1)
         teacher_outputs = F.softmax(teacher_outputs / self.T, dim=1) + 10 ** (-7)
 
@@ -133,6 +134,8 @@ def bnwd_optim_params(model, model_params, master_params):
 
 
 def split_bn_params(model, model_params, master_params):
+
+    # 递归解包，将batchnorm的参数提取出来
     def get_bn_params(module):
         if isinstance(module, torch.nn.modules.batchnorm._BatchNorm): return module.parameters()
         accum = set()
@@ -142,6 +145,10 @@ def split_bn_params(model, model_params, master_params):
     mod_bn_params = get_bn_params(model)
     zipped_params = list(zip(model_params, master_params))
 
+    # 不知道这里为什么zip，所有调用的地方，model_params=master_params
+
     mas_bn_params = [p_mast for p_mod, p_mast in zipped_params if p_mod in mod_bn_params]
     mas_rem_params = [p_mast for p_mod, p_mast in zipped_params if p_mod not in mod_bn_params]
+
+    # 将BN层参数和非BN层参数分开输出
     return mas_bn_params, mas_rem_params

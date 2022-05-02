@@ -1,0 +1,14 @@
+nohup mpirun -np 9 -hostfile ./mpi_host_file python3 ./main_fedgkt.py \
+--gpu $GPU \
+--dataset $DATASET \
+--data_dir $DATA_DIR \
+--partition_method $DISTRIBUTION  \
+--client_number 8 \
+--client_model $CLIENT_MODEL \
+--comm_round $ROUND \
+--epochs_client $EPOCH_CLIENT \
+--batch_size $BATCH_SIZE \
+--optimizer ADAM \
+--lr $LR \
+--running_name $NAME \
+--multi_gpu_server >FedGKT_CIFAR10_homo.log 2>&1 &

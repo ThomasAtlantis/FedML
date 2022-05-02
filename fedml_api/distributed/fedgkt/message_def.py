@@ -21,4 +21,4 @@ class MyMessage(object):
     MSG_ARG_KEY_LABELS = "labels"
     MSG_ARG_KEY_FEATURE_TEST = "feature_test"
     MSG_ARG_KEY_LABELS_TEST = "labels_test"
-    MSG_ARG_KEY_GLOBAL_LOGITS= "global_logits"
+    MSG_ARG_KEY_GLOBAL_LOGITS = "global_logits"

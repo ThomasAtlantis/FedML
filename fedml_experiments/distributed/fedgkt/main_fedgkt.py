@@ -14,6 +14,7 @@ from mpi4py import MPI
 # add the FedML root directory to the python path
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../")))
+sys.path.insert(0, os.path.abspath(os.path.join(os.getcwd(), "../../../../")))
 from fedml_api.data_preprocessing.cifar10.data_loader import load_partition_data_cifar10
 from fedml_api.data_preprocessing.cifar100.data_loader import load_partition_data_cifar100
 from fedml_api.data_preprocessing.cinic10.data_loader import load_partition_data_cinic10
@@ -23,10 +24,6 @@ from fedml_api.model.cv.resnet56_gkt.resnet_client import resnet8_56
 from fedml_api.model.cv.resnet56_gkt.resnet_pretrained import resnet56_pretrained
 from fedml_api.model.cv.resnet56_gkt.resnet_server import resnet56_server
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
-
 
 def add_args(parser):
     """
@@ -34,9 +31,6 @@ def add_args(parser):
     return a parser added with args required by fit
     """
     # Training settings
-    parser.add_argument('--model_client', type=str, default='resnet5', metavar='N',
-                        help='neural network used in training')
-
     parser.add_argument('--model_server', type=str, default='resnet32', metavar='N',
                         help='neural network used in training')
 
@@ -85,7 +79,7 @@ def add_args(parser):
     parser.add_argument('--alpha', default=1.0, type=float, help='Input the relative weight: default(1.0)')
     parser.add_argument('--optimizer', default="SGD", type=str, help='optimizer: SGD, Adam, etc.')
     parser.add_argument('--whether_training_on_client', default=1, type=int)
-    parser.add_argument('--whether_distill_on_the_server', default=0, type=int)
+    parser.add_argument('--whether_distill_on_the_server', default=1, type=int)
     parser.add_argument('--client_model', default="resnet4", type=str)
     parser.add_argument('--weight_init_model', default="resnet32", type=str)
     parser.add_argument('--running_name', default="default", type=str)
@@ -94,14 +88,14 @@ def add_args(parser):
     parser.add_argument('--test', action='store_true',
                         help='test mode, only run 1-2 epochs to test the bug of the program')
 
-    parser.add_argument('--gpu_num_per_server', type=int, default=8,
+    parser.add_argument('--gpu_num_per_server', type=int, default=2,
                         help='gpu_num_per_server')
 
     args = parser.parse_args()
     return args
 
 
-def load_data(args, dataset_name):
+def load_data(args, dataset_name, process_id):
     if dataset_name == "cifar10":
         data_loader = load_partition_data_cifar10
     elif dataset_name == "cifar100":
@@ -226,7 +220,7 @@ if __name__ == "__main__":
     # it will produce the same sequence of numbers.
     seed = 0
     np.random.seed(seed)
-    torch.manual_seed(np.random.randint(size))
+    torch.manual_seed(np.random.randint(worker_number))
 
     # GPU arrangement: Please customize this function according your own topology.
     # The GPU server list is configured at "mpi_host_file".
@@ -244,7 +238,7 @@ if __name__ == "__main__":
     # Note: if you use # of client epoch larger than 1,
     # please set the shuffle=False for the dataloader (CIFAR10/CIFAR100/CINIC10),
     # which keeps the batch sequence order across epoches.
-    dataset = load_data(args, args.dataset)
+    dataset = load_data(args, args.dataset, process_id)
     [train_data_num, test_data_num, train_data_global, test_data_global,
      train_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num] = dataset
 

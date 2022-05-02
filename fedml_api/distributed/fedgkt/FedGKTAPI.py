@@ -1,3 +1,5 @@
+import logging
+
 from mpi4py import MPI
 
 from fedml_api.distributed.fedgkt.GKTClientManager import GKTClientMananger
@@ -27,7 +29,6 @@ def init_server(args, device, comm, rank, size, model):
     # aggregator
     client_num = size - 1
     server_trainer = GKTServerTrainer(client_num, device, model, args)
-
     # start the distributed training
     server_manager = GKTServerMananger(args, server_trainer, comm, rank, size)
     server_manager.run()

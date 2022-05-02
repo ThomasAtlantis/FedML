@@ -25,6 +25,7 @@ class GKTServerMananger(ServerManager):
         self.register_message_receive_handler(MyMessage.MSG_TYPE_C2S_SEND_FEATURE_AND_LOGITS,
                                               self.handle_message_receive_feature_and_logits_from_client)
 
+    # 收到端侧消息之后执行的回调函数
     def handle_message_receive_feature_and_logits_from_client(self, msg_params):
         logging.info("handle_message_receive_feature_and_logits_from_client")
         sender_id = msg_params.get(MyMessage.MSG_ARG_KEY_SENDER)

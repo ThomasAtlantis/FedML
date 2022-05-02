@@ -27,6 +27,10 @@ class Message(object):
 
     def init(self, msg_params):
         self.msg_params = msg_params
+        # 这儿是不是少了几行
+        # self.type = self.msg_params[Message.MSG_ARG_KEY_TYPE]
+        # self.sender_id = self.msg_params[Message.MSG_ARG_KEY_SENDER]
+        # self.receiver_id = self.msg_params[Message.MSG_ARG_KEY_RECEIVER]
 
     def init_from_json_string(self, json_string):
         self.msg_params = json.loads(json_string)
@@ -41,6 +45,7 @@ class Message(object):
     def get_receiver_id(self):
         return self.receiver_id
 
+    # 这儿写的不太好，应该可以添加多项
     def add_params(self, key, value):
         self.msg_params[key] = value
 
@@ -65,6 +70,7 @@ class Message(object):
         return json_string
 
     def get_content(self):
+        # 这儿其实没必要copy
         print_dict = self.msg_params.copy()
         msg_str = str(self.__to_msg_type_string()) + ": " + str(print_dict)
         return msg_str

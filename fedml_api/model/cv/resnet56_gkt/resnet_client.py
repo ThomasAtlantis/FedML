@@ -229,12 +229,13 @@ def resnet5_56(c, pretrained=False, path=None, **kwargs):
 
 def resnet8_56(c, pretrained=False, path=None, **kwargs):
     """
-    Constructs a ResNet-32 model.
+    Constructs a ResNet-8 model.
 
     Args:
         pretrained (bool): If True, returns a model pre-trained.
     """
 
+    # 这里其实只用到了[2, 2, 2]的第一项，conv1 + 2 x Bottleneck(3) + fc共8层
     model = ResNet(Bottleneck, [2, 2, 2], num_classes=c, **kwargs)
     if pretrained:
         checkpoint = torch.load(path)
