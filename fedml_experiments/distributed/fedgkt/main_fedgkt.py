@@ -1,3 +1,7 @@
+import warnings
+
+warnings.filterwarnings("ignore")
+
 import argparse
 import logging
 import os
@@ -105,14 +109,18 @@ def load_data(args, dataset_name, process_id):
     else:
         data_loader = load_partition_data_cifar10
 
-    train_data_num, test_data_num, train_data_global, test_data_global, \
-    train_data_local_num_dict, train_data_local_dict, test_data_local_dict, \
-    class_num = data_loader(args.dataset, args.data_dir, args.partition_method,
-                            args.partition_alpha, args.client_number, args.batch_size)
-
-    dataset = [train_data_num, test_data_num, train_data_global, test_data_global,
-               train_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num]
-    return dataset
+    if process_id == 0:
+        _, _, _, _, _, train_dict, test_dict, class_num = data_loader(
+            args.dataset, args.data_dir, args.partition_method,
+            args.partition_alpha, args.client_number, args.batch_size
+        )
+        return None, None, class_num
+    else:
+        _, _, _, _, _, train_dict, test_dict, class_num = data_loader(
+            args.dataset, args.data_dir, args.partition_method,
+            args.partition_alpha, args.client_number, args.batch_size
+        )
+        return train_dict[process_id - 1], test_dict[process_id - 1], class_num
 
 
 def create_client_model(args, n_classes):
@@ -209,7 +217,7 @@ if __name__ == "__main__":
     # initialize the wandb machine learning experimental tracking platform (https://www.wandb.com/).
     if process_id == 0:
         wandb.init(
-            project="knowledge-distillation",
+            project="knowledge-distillation-NonIID",
             name="FedGKT-" + str(args.running_name),
             config=args,
             tags="group_knowledge_transfer"
@@ -239,8 +247,7 @@ if __name__ == "__main__":
     # please set the shuffle=False for the dataloader (CIFAR10/CIFAR100/CINIC10),
     # which keeps the batch sequence order across epoches.
     dataset = load_data(args, args.dataset, process_id)
-    [train_data_num, test_data_num, train_data_global, test_data_global,
-     train_data_local_num_dict, train_data_local_dict, test_data_local_dict, class_num] = dataset
+    [train_data_local_dict, test_data_local_dict, class_num] = dataset
 
     # create model
     if process_id == 0:
@@ -249,5 +256,5 @@ if __name__ == "__main__":
         model = create_client_model(args, class_num)
 
     # start distributed training
-    FedML_FedGKT_distributed(process_id, worker_number, device, comm, model, train_data_local_num_dict,
-                             train_data_local_dict, test_data_local_dict, args)
+    FedML_FedGKT_distributed(process_id, worker_number, device, comm, model, train_data_local_dict,
+                             test_data_local_dict, args)

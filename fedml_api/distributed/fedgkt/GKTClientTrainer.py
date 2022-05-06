@@ -7,13 +7,13 @@ from fedml_api.distributed.fedgkt import utils
 
 
 class GKTClientTrainer(object):
-    def __init__(self, client_index, local_training_data, local_test_data, local_sample_number, device,
-                 client_model, args):
+    def __init__(self, client_index, local_training_data, local_test_data, device, client_model, args):
         self.client_index = client_index
-        self.local_training_data = local_training_data[client_index]
-        self.local_test_data = local_test_data[client_index]
 
-        self.local_sample_number = local_sample_number
+        # self.local_training_data = local_training_data[client_index]
+        # self.local_test_data = local_test_data[client_index]
+        self.local_training_data = local_training_data
+        self.local_test_data = local_test_data
 
         self.args = args
 
@@ -39,9 +39,6 @@ class GKTClientTrainer(object):
         self.criterion_KL = utils.KL_Loss(self.args.temperature)
 
         self.server_logits_dict = dict()
-
-    def get_sample_number(self):
-        return self.local_sample_number
 
     def update_large_model_logits(self, logits):
         self.server_logits_dict = logits
@@ -91,6 +88,9 @@ class GKTClientTrainer(object):
 
         self.client_model.eval()
 
+        # 这里建议加上下面的语句优化显存占用，如果Tensor不设置no_grad可能会保留activation缓存
+        # with torch.no_grad(): # 但是由于显存不是瓶颈，先不加了
+
         """
             If the training dataset is too large, we may meet the following issue.
             ===================================================================================
@@ -105,25 +105,26 @@ class GKTClientTrainer(object):
             So it is better to run this program in a 256G CPU host memory. 
             If deploying our algorithm in real world system, please optimize the memory usage by compression.
         """
-        for batch_idx, (images, labels) in enumerate(self.local_training_data):
-            images, labels = images.to(self.device), labels.to(self.device)
+        with torch.no_grad():
+            for batch_idx, (images, labels) in enumerate(self.local_training_data):
+                images, labels = images.to(self.device), labels.to(self.device)
 
-            # logging.info("shape = " + str(images.shape))
-            log_probs, extracted_features = self.client_model(images)
+                # logging.info("shape = " + str(images.shape))
+                log_probs, extracted_features = self.client_model(images)
 
-            # logging.info("shape = " + str(extracted_features.shape))
-            # logging.info("element size = " + str(extracted_features.element_size()))
-            # logging.info("nelement = " + str(extracted_features.nelement()))
-            # logging.info("GPU memory1 = " + str(extracted_features.nelement() * extracted_features.element_size()))
-            extracted_feature_dict[batch_idx] = extracted_features.cpu().detach().numpy()
-            log_probs = log_probs.cpu().detach().numpy()
-            logits_dict[batch_idx] = log_probs
-            labels_dict[batch_idx] = labels.cpu().detach().numpy()
+                # logging.info("shape = " + str(extracted_features.shape))
+                # logging.info("element size = " + str(extracted_features.element_size()))
+                # logging.info("nelement = " + str(extracted_features.nelement()))
+                # logging.info("GPU memory1 = " + str(extracted_features.nelement() * extracted_features.element_size()))
+                extracted_feature_dict[batch_idx] = extracted_features.cpu().detach().numpy()
+                log_probs = log_probs.cpu().detach().numpy()
+                logits_dict[batch_idx] = log_probs
+                labels_dict[batch_idx] = labels.cpu().detach().numpy()
 
-        for batch_idx, (images, labels) in enumerate(self.local_test_data):
-            test_images, test_labels = images.to(self.device), labels.to(self.device)
-            _, extracted_features_test = self.client_model(test_images)
-            extracted_feature_dict_test[batch_idx] = extracted_features_test.cpu().detach().numpy()
-            labels_dict_test[batch_idx] = test_labels.cpu().detach().numpy()
+            for batch_idx, (images, labels) in enumerate(self.local_test_data):
+                test_images, test_labels = images.to(self.device), labels.to(self.device)
+                _, extracted_features_test = self.client_model(test_images)
+                extracted_feature_dict_test[batch_idx] = extracted_features_test.cpu().detach().numpy()
+                labels_dict_test[batch_idx] = test_labels.cpu().detach().numpy()
 
         return extracted_feature_dict, logits_dict, labels_dict, extracted_feature_dict_test, labels_dict_test
